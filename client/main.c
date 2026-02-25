@@ -32,6 +32,21 @@
 #include "raylib.h"
 #include "game_loop.h"
 
+/*
+ * g_font — Courier New loaded as a TTF.  Matches the original WinBolo
+ * FONT_NAME "Courier New" from gui/font.h.  Raylib falls back silently
+ * to its built-in bitmap font if the system path is not found (Linux).
+ */
+static Font g_font;
+
+/* drawText — thin wrapper used by all pre-game screens so they share
+ * the loaded TTF.  Drop-in replacement for drawText(). */
+static void drawText(const char *text, int x, int y, int size, Color col)
+{
+    DrawTextEx(g_font, text, (Vector2){(float)x, (float)y},
+               (float)size, 1.0f, col);
+}
+
 /* Hard-coded test map — replace with a file picker in a future phase. */
 #define TEST_MAP \
     "C:\\Users\\marys\\Projects\\bolo\\winbolo115-src\\winbolo\\src\\gui\\win32\\Everard Island.map"
@@ -77,12 +92,12 @@ static int launcherScreen(void)
         ClearBackground(COL_BG);
 
         /* Title */
-        DrawText("OpenBolo", 415, 40, 40, COL_GOLD);
+        drawText("OpenBolo", 415, 40, 40, COL_GOLD);
 
         /* Subtitle */
-        DrawText("Welcome to OpenBolo, the multiplayer tank game.",
+        drawText("Welcome to OpenBolo, the multiplayer tank game.",
                  215, 110, 16, COL_GRAY);
-        DrawText("Please choose a game type from the list below:",
+        drawText("Please choose a game type from the list below:",
                  230, 132, 16, COL_GRAY);
 
         /* Horizontal rule */
@@ -105,11 +120,11 @@ static int launcherScreen(void)
                 /* Hollow dot */
                 DrawCircleLines((float)cx, (float)cy, 7, circleCol);
             }
-            DrawText(labels[i], 198, optY[i], 20, textCol);
+            drawText(labels[i], 198, optY[i], 20, textCol);
         }
 
         /* Phase C note */
-        DrawText("Network options will be available in Phase C.",
+        drawText("Network options will be available in Phase C.",
                  215, 385, 14, COL_DIM);
 
         /* Horizontal rule */
@@ -118,13 +133,13 @@ static int launcherScreen(void)
         /* OK / Quit buttons */
         DrawRectangle(360, 558, 120, 38, COL_DARK);
         DrawRectangleLines(360, 558, 120, 38, COL_GOLD);
-        DrawText("OK", 407, 568, 20, COL_GOLD);
+        drawText("OK", 407, 568, 20, COL_GOLD);
 
         DrawRectangle(550, 558, 120, 38, COL_DARK);
         DrawRectangleLines(550, 558, 120, 38, COL_DIM);
-        DrawText("Quit", 591, 568, 20, COL_DIM);
+        drawText("Quit", 591, 568, 20, COL_DIM);
 
-        DrawText("Up/Down to select   Enter = OK   Esc = Quit",
+        drawText("Up/Down to select   Enter = OK   Esc = Quit",
                  285, 608, 14, COL_DIM);
 
         EndDrawing();
@@ -171,28 +186,28 @@ static void showControlsScreen(void)
         BeginDrawing();
         ClearBackground(COL_BG);
 
-        DrawText("Controls", 430, 40, 32, COL_GOLD);
+        drawText("Controls", 430, 40, 32, COL_GOLD);
         DrawRectangle(150, 88, 730, 1, (Color){80, 80, 80, 255});
 
         /* Column headers */
-        DrawText("Key", keyX, tableY - 30, 16, COL_DIM);
+        drawText("Key", keyX, tableY - 30, 16, COL_DIM);
         DrawRectangle(430, tableY - 30, 1, ROWS * rowH + 30, (Color){60, 60, 60, 255});
-        DrawText("Action", actX, tableY - 30, 16, COL_DIM);
+        drawText("Action", actX, tableY - 30, 16, COL_DIM);
 
         for (int i = 0; i < ROWS; i++) {
             int y = tableY + i * rowH;
             /* Alternate row tint */
             if (i % 2 == 0)
                 DrawRectangle(150, y - 4, 730, rowH - 2, (Color){20, 20, 20, 255});
-            DrawText(keys[i],    keyX, y, 18, COL_GOLD);
-            DrawText(actions[i], actX, y, 18, COL_GRAY);
+            drawText(keys[i],    keyX, y, 18, COL_GOLD);
+            drawText(actions[i], actX, y, 18, COL_GRAY);
         }
 
         DrawRectangle(150, tableY + ROWS * rowH + 8, 730, 1, (Color){80, 80, 80, 255});
 
         /* "Press any key" with blinking */
         if ((int)(GetTime() * 2) % 2 == 0)
-            DrawText("Press any key to continue",
+            drawText("Press any key to continue",
                      360, 605, 16, COL_DIM);
 
         EndDrawing();
@@ -232,21 +247,21 @@ static void enterPlayerName(char *buf, int maxLen)
         BeginDrawing();
         ClearBackground((Color){0, 0, 0, 255});
 
-        DrawText("WinBolo", 390, 180, 40, (Color){255, 220, 0, 255});
-        DrawText("Enter your player name:", 320, 270, 20, (Color){200, 200, 200, 255});
+        drawText("WinBolo", 390, 180, 40, (Color){255, 220, 0, 255});
+        drawText("Enter your player name:", 320, 270, 20, (Color){200, 200, 200, 255});
 
         /* Name input box */
         DrawRectangle(300, 310, 430, 44, (Color){30, 30, 30, 255});
         DrawRectangleLines(300, 310, 430, 44, (Color){255, 220, 0, 255});
-        DrawText(buf, 312, 322, 24, (Color){255, 255, 255, 255});
+        drawText(buf, 312, 322, 24, (Color){255, 255, 255, 255});
 
         /* Blinking cursor */
         if ((int)(GetTime() * 2) % 2 == 0) {
-            int tw = MeasureText(buf, 24);
-            DrawText("|", 312 + tw, 322, 24, (Color){255, 220, 0, 255});
+            int tw = (int)MeasureTextEx(g_font, buf, 24, 1.0f).x;
+            drawText("|", 312 + tw, 322, 24, (Color){255, 220, 0, 255});
         }
 
-        DrawText("ENTER to start   ESC for default (Player)",
+        drawText("ENTER to start   ESC for default (Player)",
                  248, 380, 16, (Color){120, 120, 120, 255});
         EndDrawing();
     }
@@ -261,6 +276,13 @@ int main(void)
     InitWindow(1030, 650, "WinBolo");
     InitAudioDevice();
     SetTargetFPS(50);   /* original screenGameTick fires at 50 Hz (100 Hz timer, alternating) */
+
+    /* Load TTF font for all pre-game screens.
+     * anonymous_pro_bold.ttf is bundled in fonts/ (OFL licence, shipped with
+     * Raylib examples).  Raylib silently falls back to its bitmap default if
+     * the file is missing — nothing else in main.c needs to change. */
+    g_font = LoadFontEx("fonts/anonymous_pro_bold.ttf", 48, NULL, 0);
+    SetTextureFilter(g_font.texture, TEXTURE_FILTER_BILINEAR);
 
     /* Launcher: Tutorial / Practice / Quit */
     int launch = launcherScreen();
@@ -292,7 +314,7 @@ int main(void)
         if (mapLoaded) {
             boloUpdate();   /* screenUpdate(redraw) → frontEndDrawMainScreen() */
         } else {
-            DrawText("Map load FAILED: " TEST_MAP, 10, 10, 12, (Color){255, 80, 80, 255});
+            drawText("Map load FAILED: " TEST_MAP, 10, 10, 12, (Color){255, 80, 80, 255});
         }
 
         EndDrawing();
@@ -357,6 +379,7 @@ int main(void)
     }
 
 cleanup:
+    UnloadFont(g_font);
     CloseAudioDevice();
     CloseWindow();
     return 0;

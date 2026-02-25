@@ -229,5 +229,8 @@ add_custom_command(TARGET winbolo-client POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         "${CMAKE_SOURCE_DIR}/sounds"
         "$<TARGET_FILE_DIR:winbolo-client>/sounds"
-    COMMENT "Copying tiles.bmp, background.bmp and sounds/ to output directory"
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        "${CMAKE_CURRENT_SOURCE_DIR}/fonts"
+        "$<TARGET_FILE_DIR:winbolo-client>/fonts"
+    COMMENT "Copying tiles.bmp, background.bmp, sounds/ and fonts/ to output directory"
 )
