@@ -115,15 +115,28 @@ static ENetPeerSlot *findSlotByFakePort(unsigned short fakePort)
 /* ── Shared init state ──────────────────────────────────────────────────── */
 static int g_enetInitialized = 0;
 
+/* enet_log — append a diagnostic line to enet_debug_<PID>.log.
+ * Each process gets its own log file, so HOST and JOINER never overwrite
+ * each other.  After a test run, share both files for diagnosis. */
+static void enet_log(const char *msg)
+{
+    char fname[64];
+    sprintf(fname, "enet_debug_%u.log", (unsigned)GetCurrentProcessId());
+    FILE *f = fopen(fname, "a");
+    if (f) { fprintf(f, "%s\n", msg); fclose(f); }
+}
+
 static bool gnsEnsureInit(void)
 {
     if (g_enetInitialized) return TRUE;
     if (enet_initialize() != 0) {
         fprintf(stderr, "[enet] enet_initialize() failed\n");
+        enet_log("gnsEnsureInit: enet_initialize FAILED");
         return FALSE;
     }
     memset(g_peers, 0, sizeof(g_peers));
     g_enetInitialized = 1;
+    enet_log("gnsEnsureInit: enet_initialize OK");
     return TRUE;
 }
 
@@ -172,8 +185,17 @@ void serverTransportDestroy(void)
  */
 void serverTransportListenUDP(void)
 {
+    static unsigned srvCallCount = 0;
     ENetEvent ev;
     if (!g_server) return;
+
+    /* Heartbeat: log every 100th call so we can confirm the server is still
+     * being polled when the joiner tries to connect. */
+    if (++srvCallCount % 100 == 0) {
+        char hb[64];
+        sprintf(hb, "serverTransportListenUDP: heartbeat count=%u", srvCallCount);
+        enet_log(hb);
+    }
 
     while (enet_host_service(g_server, &ev, 0) > 0) {
         switch (ev.type) {
@@ -184,8 +206,15 @@ void serverTransportListenUDP(void)
             int idx = allocPeerSlot(ev.peer);
             if (idx < 0) {
                 fprintf(stderr, "[enet] peer table full — rejecting connection\n");
+                enet_log("serverTransportListenUDP: CONNECT — peer table FULL, rejecting");
                 enet_peer_disconnect(ev.peer, 0);
             } else {
+                char cmsg[128];
+                sprintf(cmsg,
+                    "serverTransportListenUDP: CONNECT peer=%u slot=%d fakePort=%u",
+                    (unsigned)ev.peer->address.port, idx,
+                    (unsigned)g_peers[idx].fakePort);
+                enet_log(cmsg);
                 ev.peer->data = (void *)(size_t)idx; /* store slot index in peer */
             }
             break;
@@ -193,6 +222,18 @@ void serverTransportListenUDP(void)
 
         case ENET_EVENT_TYPE_RECEIVE: {
             ENetPeerSlot *slot = findSlotByPeer(ev.peer);
+            {
+                char rmsg[128];
+                sprintf(rmsg,
+                    "serverTransportListenUDP: RECEIVE peer=%u chan=%u len=%u slot=%s pktType=0x%02x",
+                    (unsigned)ev.peer->address.port,
+                    (unsigned)ev.channelID,
+                    (unsigned)ev.packet->dataLength,
+                    slot ? "OK" : "NULL",
+                    ev.packet->dataLength > 0
+                        ? (unsigned)(((BYTE*)ev.packet->data)[0]) : 0xFF);
+                enet_log(rmsg);
+            }
             if (slot) {
                 g_lastSrvPeer = ev.peer;
                 serverNetUDPPacketArrive(
@@ -206,6 +247,7 @@ void serverTransportListenUDP(void)
         }
 
         case ENET_EVENT_TYPE_DISCONNECT:
+            enet_log("serverTransportListenUDP: DISCONNECT");
             freePeerSlot(ev.peer);
             if (g_lastSrvPeer == ev.peer) g_lastSrvPeer = NULL;
             ev.peer->data = NULL;
@@ -233,7 +275,19 @@ void serverTransportSendUDPLast(BYTE *buff, int len, bool wantCrc)
     ENetPacket *pkt;
     BYTE        crcBuf[2048];
 
-    if (!g_lastSrvPeer) return;
+    if (!g_lastSrvPeer) {
+        enet_log("serverTransportSendUDPLast: g_lastSrvPeer is NULL — packet dropped");
+        return;
+    }
+    {
+        char smsg[128];
+        sprintf(smsg,
+            "serverTransportSendUDPLast: sending len=%d wantCrc=%d to peer port=%u pktType=0x%02x",
+            len, (int)wantCrc,
+            (unsigned)g_lastSrvPeer->address.port,
+            len > 0 ? (unsigned)buff[0] : 0xFF);
+        enet_log(smsg);
+    }
 
     if (wantCrc && len + 2 <= (int)sizeof(crcBuf)) {
         BYTE crcA, crcB;
@@ -381,8 +435,11 @@ void netClientGetServerAddressString(char *dest)
 
 void netClientSetServerAddress(struct in_addr *src, unsigned short port)
 {
+    /* src->s_addr is in network byte order (from netClientGetLast / INFO_PACKET).
+     * port has already been through ntohs() by the caller (netJoinInit), so it
+     * is in host byte order — do NOT apply ntohs() again. */
     g_serverAddr.host = ntohl(src->s_addr);
-    g_serverAddr.port = ntohs(port);
+    g_serverAddr.port = port;
 }
 
 void netClientSetServerPort(unsigned short port)
@@ -433,103 +490,165 @@ bool netClientUdpPing(BYTE *buff, int *len, char *dest,
                       unsigned short port, bool wantCrc, bool addNonReliable)
 {
     ENetAddress  addr;
-    ENetHost    *tmpHost;
     ENetPeer    *peer;
     ENetEvent    ev;
     enet_uint32  deadline;
     bool         got_response = FALSE;
+    bool         need_connect;
 
-    (void)wantCrc; (void)addNonReliable;
+    (void)addNonReliable;
 
-    if (!g_enetInitialized && !gnsEnsureInit()) return FALSE;
+    {
+        char emsg[128];
+        sprintf(emsg, "netClientUdpPing: ENTER dest=%s port=%u sendLen=%d wantCrc=%d",
+                dest, (unsigned)port, *len, (int)wantCrc);
+        enet_log(emsg);
+    }
+
+    if (!g_enetInitialized && !gnsEnsureInit()) {
+        enet_log("netClientUdpPing: gnsEnsureInit FAILED");
+        return FALSE;
+    }
 
     /* Resolve destination */
-    if (enet_address_set_host(&addr, dest) != 0) return FALSE;
+    if (enet_address_set_host(&addr, dest) != 0) {
+        enet_log("netClientUdpPing: enet_address_set_host FAILED");
+        return FALSE;
+    }
     addr.port = port;
 
-    /* Create a client host if we don't have one yet.
-     * Always bind to port 0 (OS-assigned) — the requested port belongs to the
-     * server and binding the client to the same port would fail on the same
-     * machine (EADDRINUSE).                                                   */
+    /* Create a client host if we don't have one yet. */
     if (!g_client) {
-        tmpHost = enet_host_create(NULL, 1, 2, 0, 0);
-        if (!tmpHost) return FALSE;
-    } else {
-        tmpHost = g_client;
-    }
-
-    peer = enet_host_connect(tmpHost, &addr, 2, 0);
-    if (!peer) {
-        if (tmpHost != g_client) enet_host_destroy(tmpHost);
-        return FALSE;
-    }
-
-    /* Wait for connection (up to 3 s).
-     * Also service g_server each iteration so the embedded server can
-     * complete the ENet handshake with our client (both sides must exchange
-     * packets — if only the client is serviced the connect never completes). */
-    deadline = enet_time_get() + 3000;
-    while (enet_time_get() < deadline) {
-        serverTransportListenUDP();   /* pump embedded server                  */
-        if (enet_host_service(tmpHost, &ev, 10) > 0) {
-            if (ev.type == ENET_EVENT_TYPE_CONNECT) break;
-            if (ev.type == ENET_EVENT_TYPE_DISCONNECT) {
-                if (tmpHost != g_client) enet_host_destroy(tmpHost);
-                return FALSE;
-            }
-        }
-    }
-    if (enet_time_get() >= deadline) {
-        enet_peer_reset(peer);
-        if (tmpHost != g_client) enet_host_destroy(tmpHost);
-        return FALSE;
-    }
-
-    /* Send the ping packet reliably on channel 1 */
-    {
-        ENetPacket *pkt = enet_packet_create(buff, (size_t)*len,
-                                             ENET_PACKET_FLAG_RELIABLE);
-        if (!pkt || enet_peer_send(peer, 1, pkt) < 0) {
-            enet_peer_disconnect(peer, 0);
-            if (tmpHost != g_client) enet_host_destroy(tmpHost);
+        g_client = enet_host_create(NULL, 1, 2, 0, 0);
+        if (!g_client) {
+            enet_log("netClientUdpPing: enet_host_create (client) FAILED");
             return FALSE;
         }
+        enet_log("netClientUdpPing: created fresh g_client");
     }
-    enet_host_flush(tmpHost);
 
-    /* Wait for the response (up to 6 s), keeping the server alive. */
+    /* Reuse an existing connection to the same server — netJoinInit calls us
+     * multiple times (info, password, name-check) on the same session.
+     * Calling enet_host_connect again on a peerCount=1 host that already has
+     * a connected peer returns NULL; reusing the peer avoids that. */
+    need_connect = (g_serverConn == NULL ||
+                    g_serverAddr.host != addr.host ||
+                    g_serverAddr.port != addr.port);
+
+    if (need_connect) {
+        enet_log("netClientUdpPing: need_connect=TRUE — initiating ENet handshake");
+        peer = enet_host_connect(g_client, &addr, 2, 0);
+        if (!peer) {
+            enet_log("netClientUdpPing: enet_host_connect returned NULL");
+            return FALSE;
+        }
+
+        /* Wait for the ENet handshake (up to 3 s).
+         * Pump the embedded server so it can accept the connection. */
+        deadline = enet_time_get() + 3000;
+        while (enet_time_get() < deadline) {
+            serverTransportListenUDP();
+            if (enet_host_service(g_client, &ev, 10) > 0) {
+                if (ev.type == ENET_EVENT_TYPE_CONNECT) {
+                    enet_log("netClientUdpPing: CONNECT event received — handshake OK");
+                    break;
+                }
+                if (ev.type == ENET_EVENT_TYPE_DISCONNECT) {
+                    enet_log("netClientUdpPing: DISCONNECT during handshake — aborting");
+                    return FALSE;
+                }
+            }
+        }
+        if (enet_time_get() >= deadline) {
+            enet_log("netClientUdpPing: CONNECT deadline expired (3 s) — handshake TIMEOUT");
+            enet_peer_reset(peer);
+            return FALSE;
+        }
+        /* Record so subsequent pings reuse this connection. */
+        g_serverConn = peer;
+        g_serverAddr = addr;
+        g_ourPort    = (unsigned short)g_client->address.port;
+    } else {
+        enet_log("netClientUdpPing: reusing existing g_serverConn");
+        peer = g_serverConn;
+    }
+
+    /* Send the ping packet reliably on channel 1.
+     * When wantCrc is TRUE, append a 2-byte CRC so serverNetUDPPacketArrive
+     * can validate it — matching what serverTransportSendUDPLast does.       */
+    {
+        BYTE        crcBuf[2048];
+        const BYTE *sendBuf = buff;
+        int         sendLen = *len;
+        ENetPacket *pkt;
+
+        if (wantCrc && sendLen + 2 <= (int)sizeof(crcBuf)) {
+            BYTE crcA, crcB;
+            CRCCalcBytes(buff, sendLen, &crcA, &crcB);
+            memcpy(crcBuf, buff, (size_t)sendLen);
+            crcBuf[sendLen]     = crcA;
+            crcBuf[sendLen + 1] = crcB;
+            sendBuf = crcBuf;
+            sendLen += 2;
+        }
+
+        pkt = enet_packet_create(sendBuf, (size_t)sendLen, ENET_PACKET_FLAG_RELIABLE);
+        if (!pkt || enet_peer_send(peer, 1, pkt) < 0) {
+            enet_log("netClientUdpPing: enet_peer_send (request) FAILED");
+            return FALSE;
+        }
+        {
+            char smsg[80];
+            sprintf(smsg, "netClientUdpPing: sent request len=%d (wantCrc=%d) on channel 1",
+                    sendLen, (int)wantCrc);
+            enet_log(smsg);
+        }
+    }
+    enet_host_flush(g_client);
+    enet_log("netClientUdpPing: flushed — waiting for response (6 s)");
+
+    /* Wait for the response (up to 6 s).
+     * *len is the SENT size on entry; on return it is the RECEIVED size.
+     * The receive buffer (buff) is always MAX_UDPPACKET_SIZE bytes in the
+     * callers (netJoinInit), so copying the full received packet is safe. */
     deadline = enet_time_get() + 6000;
     while (enet_time_get() < deadline && !got_response) {
-        serverTransportListenUDP();   /* pump embedded server                  */
-        if (enet_host_service(tmpHost, &ev, 10) > 0) {
+        serverTransportListenUDP();
+        if (enet_host_service(g_client, &ev, 10) > 0) {
             if (ev.type == ENET_EVENT_TYPE_RECEIVE) {
                 int rcvLen = (int)ev.packet->dataLength;
-                if (rcvLen <= *len) {
-                    memcpy(buff, ev.packet->data, (size_t)rcvLen);
-                    *len = rcvLen;
+                {
+                    char rmsg[128];
+                    sprintf(rmsg,
+                        "netClientUdpPing: RECEIVE rcvLen=%d chan=%u pktType=0x%02x",
+                        rcvLen, (unsigned)ev.channelID,
+                        rcvLen > 0 ? (unsigned)((BYTE*)ev.packet->data)[0] : 0xFF);
+                    enet_log(rmsg);
                 }
+                /* Record the peer so netClientGetLast() can return the correct
+                 * server address to netJoinInit after the first ping.        */
+                g_lastCliPeer = ev.peer;
+                memcpy(buff, ev.packet->data, (size_t)rcvLen);
+                *len = rcvLen;
                 enet_packet_destroy(ev.packet);
                 got_response = TRUE;
+            } else {
+                char omsg[64];
+                sprintf(omsg, "netClientUdpPing: non-RECEIVE event type=%d (ignored)",
+                        (int)ev.type);
+                enet_log(omsg);
             }
         }
     }
 
-    if (got_response) {
-        /* Promote to permanent server connection */
-        if (tmpHost != g_client) {
-            /* We used a temp host — hand the peer's host over to g_client.   *
-             * Simplest: just keep tmpHost as g_client.                       */
-            if (g_client) enet_host_destroy(g_client);
-            g_client = tmpHost;
-        }
-        g_serverConn  = peer;
-        g_serverAddr  = addr;
-        g_ourPort     = (unsigned short)g_client->address.port;
-    } else {
-        enet_peer_disconnect(peer, 0);
-        if (tmpHost != g_client) enet_host_destroy(tmpHost);
+    if (!got_response) {
+        enet_log("netClientUdpPing: response deadline expired (6 s) — TIMEOUT");
     }
-
+    {
+        char rmsg[64];
+        sprintf(rmsg, "netClientUdpPing: RETURN got_response=%d", (int)got_response);
+        enet_log(rmsg);
+    }
     return got_response;
 }
 

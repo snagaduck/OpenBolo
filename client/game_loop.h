@@ -28,6 +28,10 @@
 #ifndef GAME_LOOP_H
 #define GAME_LOOP_H
 
+/* Append a diagnostic line to net_debug.log — lets main.c log without
+ * pulling in bolo or Windows headers. */
+void boloLogMsg(const char *msg);
+
 /* Returns 1 on success, 0 if the map file could not be loaded.
  * playerName is stored for gameFrontGetPlayerName() calls and passed
  * to the game engine.  Pass NULL or "" to use the default "Player". */
@@ -70,9 +74,11 @@ int boloInPillView(void);
 
 /* ── Phase C: ENet multiplayer ──────────────────────────────────────────── */
 
-/* Host a new game on the given UDP port.  Call before the game loop.
+/* Host a new game.  Loads mapFile into the embedded server, binds the
+ * server to port, and joins as the first client.  Call before the game loop;
+ * poll boloNetStatus() until BOLO_NET_RUNNING, then call boloNetPostConnect().
  * Returns 1 on success, 0 on failure. */
-int  boloHost(unsigned short port, const char *playerName);
+int  boloHost(const char *mapFile, unsigned short port, const char *playerName);
 
 /* Join an existing game at ip:port.  Call before the game loop; then poll
  * boloNetStatus() each frame until it returns BOLO_NET_RUNNING or
@@ -86,6 +92,10 @@ int  boloNetStatus(void);
  * Use this in connecting/loading screens that need network progress but must not
  * trigger game rendering. */
 void boloNetPoll(void);
+
+/* Apply post-download client settings (gunsight, auto-scroll, HUD status).
+ * Call once after connectingScreen() returns 1 (BOLO_NET_RUNNING). */
+void boloNetPostConnect(void);
 
 /* Values returned by boloNetStatus() — mirrors the engine's netStatus enum. */
 #define BOLO_NET_JOINING         0

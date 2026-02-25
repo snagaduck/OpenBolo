@@ -582,31 +582,44 @@ int main(void)
             if (netMode == 2 || WindowShouldClose()) continue; /* Back */
 
             if (netMode == 0) {
-                /* Host */
+                /* Host — server loads map; client receives it via download. */
                 unsigned short port = enterPort(27500);
                 if (!port || WindowShouldClose()) continue;
 
-                int mapLoaded = boloInit(TEST_MAP, playerName);
-                if (mapLoaded && boloHost(port, playerName)) {
-                    /* Brief connecting phase while the local client joins
-                     * the embedded server. */
+                if (boloHost(TEST_MAP, port, playerName)) {
+                    boloLogMsg("main: boloHost OK — entering connectingScreen");
                     if (connectingScreen()) {
+                        boloLogMsg("main: connectingScreen OK — calling boloNetPostConnect");
+                        boloNetPostConnect();
+                        boloLogMsg("main: entering runGameLoop");
                         runGameLoop(1);
+                        boloLogMsg("main: runGameLoop exited");
+                    } else {
+                        boloLogMsg("main: connectingScreen FAILED");
                     }
-                } else if (!mapLoaded) {
-                    runGameLoop(0); /* show error screen */
+                } else {
+                    boloLogMsg("main: boloHost FAILED");
                 }
             } else {
-                /* Join */
+                /* Join — map is downloaded from the remote server. */
                 char ip[64];
                 unsigned short port = 0;
                 if (!enterIPPort(ip, sizeof(ip), &port) || WindowShouldClose())
                     continue;
 
                 if (boloJoin(ip, port, playerName)) {
+                    boloLogMsg("main: boloJoin OK — entering connectingScreen");
                     if (connectingScreen()) {
+                        boloLogMsg("main: connectingScreen OK — calling boloNetPostConnect");
+                        boloNetPostConnect();
+                        boloLogMsg("main: entering runGameLoop");
                         runGameLoop(1);
+                        boloLogMsg("main: runGameLoop exited");
+                    } else {
+                        boloLogMsg("main: connectingScreen FAILED (join)");
                     }
+                } else {
+                    boloLogMsg("main: boloJoin FAILED");
                 }
             }
         } else {
