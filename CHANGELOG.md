@@ -42,8 +42,8 @@ Complete replacement of the original Win32/DirectX platform layer with Raylib.
   `InitAudioDevice` / `CloseAudioDevice` in `main.c`. CMake post-build copies
   `sounds/` to output directory.
 - **B5 — Input**: Raylib `IsKeyDown` / `IsKeyPressed` poll replaces Win32
-  `input.c`. Arrow keys drive tank; Space fires; B deploys LGM; W/S adjust
-  gunsight range. `boloTick(tankButton, shoot)` bridge in `game_loop.c`.
+  `input.c`. Arrow keys / WASD drive tank; Space fires; B deploys LGM; `[`/`]`
+  adjust gunsight range. `boloTick(tankButton, shoot)` bridge in `game_loop.c`.
 - **B6 — Win32 UI stubs → Raylib UI**: Pre-game player name entry screen
   (yellow text box, blinking cursor, Enter/ESC). `gameFrontSetPlayerName`
   setter in `win32stubs.c`. `boloInit` accepts `playerName`, passes it to

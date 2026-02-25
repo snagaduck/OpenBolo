@@ -55,13 +55,19 @@ socket and SDL mutex stubs; the client Raylib layer needs a Linux CMake pass.
 
 | Key | Action |
 |-----|--------|
-| Arrow keys | Drive tank |
+| Up / W | Accelerate |
+| Down / S | Decelerate |
+| Left / A | Turn anti-clockwise |
+| Right / D | Turn clockwise |
 | Space | Fire shell |
 | Tab | Quick-drop mine (visible to nearby tanks) |
 | B | Deploy LGM (engineer / builder) |
-| W / S | Increase / decrease gunsight range |
+| [ / ] | Increase / decrease gunsight range |
 | ; | Cycle pillbox view (owned pillboxes) |
 | Return | Return to tank view |
+
+> The tank has momentum — releasing accelerate does not stop it instantly.
+> Use decelerate to brake, and plan your approach to avoid coasting into mines.
 
 See [docs/MANUAL.md](docs/MANUAL.md) for full gameplay documentation.
 

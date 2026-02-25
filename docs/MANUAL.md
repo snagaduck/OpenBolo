@@ -76,23 +76,27 @@ fundamentally about players communicating and cooperating.
 
 | Key | Action |
 |-----|--------|
-| Arrow Up | Accelerate |
-| Arrow Down | Decelerate |
-| Arrow Left | Turn anti-clockwise |
-| Arrow Right | Turn clockwise |
+| Arrow Up / W | Accelerate |
+| Arrow Down / S | Decelerate |
+| Arrow Left / A | Turn anti-clockwise |
+| Arrow Right / D | Turn clockwise |
 | Space | Fire shell |
 | Tab | Quick-drop mine (visible to nearby tanks) |
 | B | Send builder (LGM) to selected square |
-| W | Increase gunsight range |
-| S | Decrease gunsight range |
+| [ | Increase gunsight range |
+| ] | Decrease gunsight range |
 | ; (semicolon) | Cycle pillbox view (owned pillboxes) |
 | Return | Return to tank view |
+
+> **Momentum:** The tank accelerates and decelerates gradually — releasing the
+> accelerate key does not stop it. Brake deliberately before obstacles and
+> minefields; coasting into a mine is a common new-player mistake.
 
 > **Note on quick mines (Tab):** Mines dropped this way are visible to all nearby
 > tanks. If you are being chased, an enemy *will* see them and can avoid them. Use
 > the builder (B) to lay invisible mines instead.
 
-> **Note on gunsight (W/S):** Normally shells hit the first obstacle in their path
+> **Note on gunsight ([ / ]):** Normally shells hit the first obstacle in their path
 > and range adjustment is unnecessary. Use it deliberately to land shells on mines
 > to clear a path through a suspected minefield.
 
@@ -203,7 +207,7 @@ builder must walk to the location. Advantages:
 
 ### Mine Clearing
 
-To clear a suspected minefield, reduce your gunsight range (S key) and fire to land
+To clear a suspected minefield, reduce your gunsight range (`]` key) and fire to land
 shells ahead of the tank. A shell will detonate any mine it lands on.
 
 > **Tip:** Exploding mines trigger adjacent mines in a chain reaction. Lay mines in a

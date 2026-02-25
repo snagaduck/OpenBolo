@@ -40,7 +40,7 @@
 
 ### Session 7 (2026-02-25)
 - Implemented Phase B5: Keyboard Input
-- `win32stubs.c` → `input_bridge.c`: Raylib `IsKeyDown()` polls for tank arrow keys, shoot (Space), LGM (B), gunsight range (W/S)
+- `win32stubs.c` → `input_bridge.c`: Raylib `IsKeyDown()` polls for tank Arrow/WASD movement, shoot (Space), LGM (B), gunsight range (`[`/`]`)
 - `boloTick()` in `game_loop.c` receives packed `tankButton` ordinal + `shoot` flag from main loop
 - Tank movement, shooting, and LGM all work via keyboard
 - **Player can drive tank, shoot pillboxes, and fire LGM**
@@ -194,7 +194,7 @@ client code compiles on Windows and Linux.
 ### B5 — Input ✅
 - [x] Replace Win32 keyboard/mouse (`input.c`) with Raylib `IsKeyDown()` / `IsKeyPressed()`
 - [x] Wire input to tank controls via `boloTick(tankButton, shoot)` in `game_loop.c`
-- [x] Arrow keys → tank movement; Space → shoot; B → LGM; W/S → gunsight range
+- [x] Arrow keys / WASD → tank movement; Space → shoot; B → LGM; `[`/`]` → gunsight range
 - [x] **Player can drive tank, shoot, capture pillboxes/bases, fire LGM**
 
 ### B6 — Win32 UI Stubs → Raylib UI ✅
