@@ -73,6 +73,18 @@
 - Font spacing attempt: tried `DrawTextEx(GetFontDefault(), ...)` for wider spacing — silently blanked all text, reverted to `DrawText`
 - **Player name visible at startup**
 
+### Session 10 (2026-02-25)
+- Implemented Phase C1: ENet multiplayer transport
+  - Networking decision finalised: **ENet v1.3.17** (pure C, UDP + reliability) replaces Win32 Winsock2 raw UDP
+  - ENet v1.3.17 added via FetchContent; `CMAKE_POLICY_VERSION_MINIMUM=3.5` workaround for ENet's old cmake_minimum; CRT aligned with `/MT /MTd` via `MSVC_RUNTIME_LIBRARY` property
+  - `client/enet_transport.c`: pure-C replacement for `netclient.c` + `servertransport.c`; ENet peer map bridges ENet's connection-oriented API to WinBolo's address-oriented packet dispatch
+  - `client/CMakeLists.txt`: swapped old Winsock2 transport files for `enet_transport.c`; added ENet include + link
+  - `client/game_loop.h/.c`: added `boloHost(port, name)`, `boloJoin(ip, port, name)`, `boloNetStatus()`, `boloNetPoll()`; `boloUpdate()` polls `serverTransportListenUDP()` + `netClientUdpCheck()` each frame
+  - `client/main.c`: TCP/IP option unlocked in launcher; added `networkModeScreen`, `enterPort`, `enterIPPort`, `connectingScreen`, `runGameLoop`
+  - Key bugs fixed: port conflict (host+client on same machine — client uses port 0), ENet handshake deadlock (both hosts must be serviced during `netClientUdpPing` wait loops), Raylib key leakage (blank-frame draw resets `IsKeyPressed` state via `PollInputEvents`), `connectingScreen` crash (`boloUpdate` called outside `BeginDrawing` — replaced with `boloNetPoll`)
+- **Solo play unchanged; TCP/IP Host/Join UI implemented; build clean**
+- **TCP/IP networking still crashing — further investigation needed before C2**
+
 ### Session 5 (2026-02-24)
 - Implemented Phase B2: tile rendering
 - `render_bridge.c/.h` bridge (compiled without /FI) — `renderLoadTiles` / `renderTile` / `renderMine`
@@ -114,7 +126,7 @@ New project root: this directory
 |----------------|------------------|-----------|
 | Build system   | CMake 3.20+      | Cross-platform, VS/Ninja/Make compatible |
 | Graphics/Audio | Raylib 5.5       | C-native, zero deps, modern OpenGL, replaces DirectX 5 + SDL 1.2 |
-| Networking     | Original (Phase A/B), consider GNS (Phase C) | Keep protocol compatibility first |
+| Networking     | ENet v1.3.17 (replaces Win32 Winsock2 UDP)   | Pure C, cross-platform, reliable UDP; original WinBolo 1.15 clients incompatible |
 | Language std   | C11              | Minimal change from original K&R/C89 style |
 | Platform target | Windows first, Linux second | Matches original priority |
 
@@ -207,18 +219,38 @@ client code compiles on Windows and Linux.
 - [x] `screenForceStatusUpdate()` extended: pushes pills/bases/tank icon AND player name message at startup
 - [x] **Player name flows from UI → engine → network packets; HUD fully populated at startup**
 
-### B7 — Verify Linux Build ← NEXT
+### B7 — Verify Linux Build
 - [ ] Add Linux support to CMakeLists (conditional Raylib platform, no WIN32 stubs needed)
 - [ ] Fix any `#ifdef _WIN32` gaps in the codebase
 
 ---
 
-## Phase C — Networking Modernization
+## Phase C — ENet Multiplayer Transport ← CURRENT
 
-- [ ] Audit `udppackets.c`, `netpnb.c`, `netmt.c` for buffer safety
-- [ ] Add IPv6 support to `servertransport.c`
-- [ ] Evaluate GameNetworkingSockets (Valve GNS) — Option 1: wrap existing protocol (keeps old client compat)
-- [ ] Add TLS/encryption for WinBoloNet HTTP calls (currently plain HTTP)
+Transport layer replaced: ENet v1.3.17 over UDP; game protocol (network.c, servernet.c) unchanged.
+Original WinBolo 1.15 clients are **not** compatible (ENet frames packets differently).
+
+### C1 — Wire ENet, Solo Play Unchanged ← IN PROGRESS
+- [x] ENet v1.3.17 via FetchContent; `CMAKE_POLICY_VERSION_MINIMUM=3.5`; CRT aligned (`MSVC_RUNTIME_LIBRARY`)
+- [x] `client/enet_transport.c` — pure-C replacement for `netclient.c` + `servertransport.c`
+- [x] ENet peer map: `fakePort=27501+N`, `fakeAddr=127.0.1.N` bridges connection-oriented ENet to address-oriented WinBolo dispatch
+- [x] `client/CMakeLists.txt` updated: old transport files removed, ENet linked
+- [x] `boloHost`, `boloJoin`, `boloNetStatus`, `boloNetPoll` added to `game_loop.c/.h`
+- [x] `boloUpdate()` polls `serverTransportListenUDP()` + `netClientUdpCheck()` each frame
+- [x] TCP/IP launcher option unlocked; `networkModeScreen`, `enterPort`, `enterIPPort`, `connectingScreen`, `runGameLoop` in `main.c`
+- [x] Fixed: port conflict (client uses port 0 when co-located with server); ENet handshake deadlock (both hosts pumped in `netClientUdpPing`); Raylib key leakage (blank-frame draw advances `PollInputEvents`); `connectingScreen` crash (`boloNetPoll` replaces `boloUpdate` outside drawing context)
+- [ ] **TCP/IP networking still crashing — root cause TBD**
+
+### C2 — Loopback Multiplayer Test ← NEXT
+- [ ] Two instances on 127.0.0.1:27500 — both tanks visible, independently controllable
+- [ ] Verify `boloInit` + `boloHost` sequence for the hosting instance
+- [ ] Verify `boloJoin` → `connectingScreen` → `runGameLoop` for the joining instance
+
+### C3 — LAN Play
+- [ ] Two machines, direct IP; test with real network latency
+
+### C4 — LAN Broadcast Discovery
+- [ ] Browse local games (UDP broadcast on LAN)
 
 ---
 
@@ -284,7 +316,8 @@ new-project/
     ├── game_loop.c              ← bridge impl compiled WITH /FI
     ├── frontend_raylib.c        ← full frontend impl (B2-B3: tile grid, HUD, status, man)
     ├── render_bridge.c/.h       ← Raylib draw bridge (compiled without /FI): tiles, sprites, HUD primitives
-    ├── game_loop.c/.h           ← bolo engine bridge (compiled with /FI): boloInit/Tick/Update
+    ├── game_loop.c/.h           ← bolo engine bridge (compiled with /FI): boloInit/Tick/Update/NetPoll
+    ├── enet_transport.c         ← ENet UDP transport (replaces netclient.c + servertransport.c)
     ├── positions.h              ← HUD layout constants (zoom=1 coords)
     ├── preferences_stub.c       ← Windows INI path helper
     └── win32stubs.c             ← stubs for DirectX/WinMain symbols

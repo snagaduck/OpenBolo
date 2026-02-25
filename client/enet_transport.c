@@ -299,13 +299,20 @@ bool netClientCreate(unsigned short port)
 
     if (!gnsEnsureInit()) return FALSE;
 
+    /* If the server is already bound to the requested port (i.e. this process
+     * is both server and client, as in the Host case), we must NOT bind the
+     * client to the same port — that would fail with EADDRINUSE.  Use port=0
+     * (OS-assigned ephemeral port) instead.                                  */
+    if (port != 0 && g_server != NULL && g_server->address.port == port) {
+        port = 0;
+    }
+
+    localAddr.host = ENET_HOST_ANY;
+    localAddr.port = port;
+
     if (port == 0) {
-        localAddr.host = ENET_HOST_ANY;
-        localAddr.port = 0;
         g_client = enet_host_create(NULL, 1, 2, 0, 0);
     } else {
-        localAddr.host = ENET_HOST_ANY;
-        localAddr.port = port;
         g_client = enet_host_create(&localAddr, 1, 2, 0, 0);
     }
 
@@ -440,7 +447,10 @@ bool netClientUdpPing(BYTE *buff, int *len, char *dest,
     if (enet_address_set_host(&addr, dest) != 0) return FALSE;
     addr.port = port;
 
-    /* Create a temporary single-peer host if we don't have one yet          */
+    /* Create a client host if we don't have one yet.
+     * Always bind to port 0 (OS-assigned) — the requested port belongs to the
+     * server and binding the client to the same port would fail on the same
+     * machine (EADDRINUSE).                                                   */
     if (!g_client) {
         tmpHost = enet_host_create(NULL, 1, 2, 0, 0);
         if (!tmpHost) return FALSE;
@@ -454,9 +464,13 @@ bool netClientUdpPing(BYTE *buff, int *len, char *dest,
         return FALSE;
     }
 
-    /* Wait for connection (up to 3 s) */
+    /* Wait for connection (up to 3 s).
+     * Also service g_server each iteration so the embedded server can
+     * complete the ENet handshake with our client (both sides must exchange
+     * packets — if only the client is serviced the connect never completes). */
     deadline = enet_time_get() + 3000;
     while (enet_time_get() < deadline) {
+        serverTransportListenUDP();   /* pump embedded server                  */
         if (enet_host_service(tmpHost, &ev, 10) > 0) {
             if (ev.type == ENET_EVENT_TYPE_CONNECT) break;
             if (ev.type == ENET_EVENT_TYPE_DISCONNECT) {
@@ -483,9 +497,10 @@ bool netClientUdpPing(BYTE *buff, int *len, char *dest,
     }
     enet_host_flush(tmpHost);
 
-    /* Wait for the response (up to 6 s) */
+    /* Wait for the response (up to 6 s), keeping the server alive. */
     deadline = enet_time_get() + 6000;
     while (enet_time_get() < deadline && !got_response) {
+        serverTransportListenUDP();   /* pump embedded server                  */
         if (enet_host_service(tmpHost, &ev, 10) > 0) {
             if (ev.type == ENET_EVENT_TYPE_RECEIVE) {
                 int rcvLen = (int)ev.packet->dataLength;

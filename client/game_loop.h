@@ -82,6 +82,11 @@ int  boloJoin(const char *ip, unsigned short port, const char *playerName);
 /* Returns the current network status as one of the BOLO_NET_* constants. */
 int  boloNetStatus(void);
 
+/* Pump ENet events without drawing.  Safe to call outside BeginDrawing/EndDrawing.
+ * Use this in connecting/loading screens that need network progress but must not
+ * trigger game rendering. */
+void boloNetPoll(void);
+
 /* Values returned by boloNetStatus() — mirrors the engine's netStatus enum. */
 #define BOLO_NET_JOINING         0
 #define BOLO_NET_RUNNING         1

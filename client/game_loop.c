@@ -162,3 +162,9 @@ int boloNetStatus(void)
 {
     return (int)netGetStatus();
 }
+
+void boloNetPoll(void)
+{
+    serverTransportListenUDP(); /* poll ENet server events (non-blocking) */
+    netClientUdpCheck();        /* poll ENet client receive (non-blocking) */
+}

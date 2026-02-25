@@ -219,6 +219,10 @@ static void enterPlayerName(char *buf, int maxLen)
     int len = 0;
     buf[0] = '\0';
 
+    /* Flush any key presses that leaked from the previous screen (e.g. the
+     * ENTER used to confirm the launcher selection). */
+    while (GetKeyPressed() != 0) {}
+
     while (!WindowShouldClose()) {
         /* Collect typed characters */
         int ch = GetCharPressed();
@@ -271,6 +275,10 @@ static int networkModeScreen(void)
     int sel = 0;
     static const char *labels[] = { "Host a new game", "Join an existing game" };
     static const int optY[] = { 260, 320 };
+    /* Advance key state: PollInputEvents() inside EndDrawing() clears any key
+     * that leaked from the previous screen (e.g. the ENTER that confirmed
+     * the launcher selection).  IsKeyPressed() would fire instantly otherwise. */
+    BeginDrawing(); ClearBackground(COL_BG); EndDrawing();
 
     while (!WindowShouldClose()) {
         if (IsKeyPressed(KEY_UP)   && sel > 0) sel--;
@@ -309,6 +317,8 @@ static unsigned short enterPort(unsigned short defaultPort)
 {
     char buf[8];
     int len = 0;
+    /* Advance key state before the first IsKeyPressed() check. */
+    BeginDrawing(); ClearBackground(COL_BG); EndDrawing();
 
     /* Pre-fill with default */
     TextCopy(buf, TextFormat("%d", (int)defaultPort));
@@ -354,6 +364,8 @@ static int enterIPPort(char *ipBuf, int ipLen, unsigned short *port)
 {
     char ipEntry[64]   = "127.0.0.1";
     char portEntry[8]  = "27500";
+    /* Advance key state before the first IsKeyPressed() check. */
+    BeginDrawing(); ClearBackground(COL_BG); EndDrawing();
     int  ipFocus       = 1;   /* 1=editing IP, 0=editing Port */
     int  ipLen2        = (int)TextLength(ipEntry);
     int  portLen       = (int)TextLength(portEntry);
@@ -436,7 +448,7 @@ static int connectingScreen(void)
     };
 
     while (!WindowShouldClose()) {
-        boloUpdate();   /* pump ENet events so the download progresses */
+        boloNetPoll();  /* pump ENet — safe outside BeginDrawing/EndDrawing */
 
         int status = boloNetStatus();
         if (status == BOLO_NET_RUNNING) return 1;
