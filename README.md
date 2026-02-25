@@ -57,8 +57,13 @@ socket and SDL mutex stubs; the client Raylib layer needs a Linux CMake pass.
 |-----|--------|
 | Arrow keys | Drive tank |
 | Space | Fire shell |
-| B | Deploy LGM (engineer) |
+| Tab | Quick-drop mine (visible to nearby tanks) |
+| B | Deploy LGM (engineer / builder) |
 | W / S | Increase / decrease gunsight range |
+| ; | Cycle pillbox view (owned pillboxes) |
+| Return | Return to tank view |
+
+See [docs/MANUAL.md](docs/MANUAL.md) for full gameplay documentation.
 
 ## Project Layout
 
