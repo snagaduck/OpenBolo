@@ -10,5 +10,5 @@
  * This wrapper includes the original, then resets packing to the compiler
  * default so callers are unaffected.
  */
-#include "../../winbolo/src/bolo/network.h"
+#include "../src/bolo/network.h"
 #pragma pack()   /* reset to compiler default (/Zp or none) */

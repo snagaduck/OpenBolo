@@ -87,3 +87,35 @@ void boloManMove(int buildType)
 {
     screenManMoveAtGunsight((buildSelect)buildType);
 }
+
+/* Track whether the viewport is on a pillbox or on the player's tank.
+ * screenPillView/screenTankView manage the engine's own inPillView flag;
+ * we mirror it here so main.c (no bolo headers) can query the state. */
+static int g_inPillView = 0;
+
+void boloLayMine(void)
+{
+    screenTankLayMine();
+}
+
+void boloPillView(void)
+{
+    screenPillView(0, 0);
+    g_inPillView = 1;
+}
+
+void boloTankView(void)
+{
+    screenTankView();
+    g_inPillView = 0;
+}
+
+void boloPillViewNav(int horz, int vert)
+{
+    screenPillView(horz, vert);
+}
+
+int boloInPillView(void)
+{
+    return g_inPillView;
+}

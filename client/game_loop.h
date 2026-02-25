@@ -50,4 +50,22 @@ void boloGunsightRange(int increase);
  * Use 0 for base capture — LGM auto-captures any base he reaches. */
 void boloManMove(int buildType);
 
+/* Quick-drop a mine under the tank (Tab key).
+ * The mine is visible to all nearby tanks. */
+void boloLayMine(void);
+
+/* Cycle to the next owned pillbox view (semicolon key).
+ * Has no effect if you own no pillboxes. */
+void boloPillView(void);
+
+/* Return the viewport to the player's own tank (Return key). */
+void boloTankView(void);
+
+/* Navigate between adjacent pillboxes while in pill view.
+ * horz/vert: -1 = left/up, 0 = no change, 1 = right/down. */
+void boloPillViewNav(int horz, int vert);
+
+/* Returns 1 if currently in pillbox view, 0 if in tank view. */
+int boloInPillView(void);
+
 #endif /* GAME_LOOP_H */

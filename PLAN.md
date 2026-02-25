@@ -195,7 +195,8 @@ client code compiles on Windows and Linux.
 - [x] Replace Win32 keyboard/mouse (`input.c`) with Raylib `IsKeyDown()` / `IsKeyPressed()`
 - [x] Wire input to tank controls via `boloTick(tankButton, shoot)` in `game_loop.c`
 - [x] Arrow keys / WASD → tank movement; Space → shoot; B → LGM; `[`/`]` → gunsight range
-- [x] **Player can drive tank, shoot, capture pillboxes/bases, fire LGM**
+- [x] Tab → quick-drop mine; `;` → pillbox view cycle; Return → tank view; arrows navigate pills in pill view
+- [x] **Player can drive tank, shoot, capture pillboxes/bases, fire LGM, lay mines, use pillbox view**
 
 ### B6 — Win32 UI Stubs → Raylib UI ✅
 - [x] `gameFrontGetPlayerName`: replaced hardcoded `"Player"` with a global buffer + `gameFrontSetPlayerName()` setter in `win32stubs.c`

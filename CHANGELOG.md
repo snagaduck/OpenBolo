@@ -44,6 +44,8 @@ Complete replacement of the original Win32/DirectX platform layer with Raylib.
 - **B5 — Input**: Raylib `IsKeyDown` / `IsKeyPressed` poll replaces Win32
   `input.c`. Arrow keys / WASD drive tank; Space fires; B deploys LGM; `[`/`]`
   adjust gunsight range. `boloTick(tankButton, shoot)` bridge in `game_loop.c`.
+  Tab quick-drops a mine; `;` cycles pillbox view; Return returns to tank view;
+  arrow keys navigate adjacent pillboxes while in pill view.
 - **B6 — Win32 UI stubs → Raylib UI**: Pre-game player name entry screen
   (yellow text box, blinking cursor, Enter/ESC). `gameFrontSetPlayerName`
   setter in `win32stubs.c`. `boloInit` accepts `playerName`, passes it to

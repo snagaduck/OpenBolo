@@ -82,7 +82,12 @@ fundamentally about players communicating and cooperating.
 | Arrow Right / D | Turn clockwise |
 | Space | Fire shell |
 | Tab | Quick-drop mine (visible to nearby tanks) |
-| B | Send builder (LGM) to selected square |
+| 1 | Select build mode: Farm / capture |
+| 2 | Select build mode: Road |
+| 3 | Select build mode: Building |
+| 4 | Select build mode: Place / repair pillbox |
+| 5 | Select build mode: Invisible mine |
+| B | Send builder (LGM) to gunsight tile with selected mode |
 | [ | Increase gunsight range |
 | ] | Decrease gunsight range |
 | ; (semicolon) | Cycle pillbox view (owned pillboxes) |
@@ -166,9 +171,9 @@ replenish supplies.
 
 Your tank carries a builder (the Little Green Man, or LGM). To use him:
 
-1. Select the build mode (road, bridge, building, pillbox placement, or mine).
-2. Click on the target square on the map.
-3. The builder leaves the tank, runs to the square, builds the object, and returns.
+1. Press **1–5** to select a build mode (default is **1 = Farm/capture**).
+2. Move the gunsight over the target tile.
+3. Press **B** — the builder leaves the tank, walks to the tile, builds the object, and returns.
 
 You need **tree resources** to build — farm forest first. Building costs:
 

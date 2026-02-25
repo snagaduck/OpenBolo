@@ -106,6 +106,10 @@ int main(void)
 
     int mapLoaded = boloInit(TEST_MAP, playerName);
 
+    /* Current LGM build mode (persists until changed).
+     * 0=BsTrees(farm/capture) 1=BsRoad 2=BsBuilding 3=BsPillbox 4=BsMine(invisible) */
+    int buildMode = 0;
+
     while (!WindowShouldClose()) {
         BeginDrawing();
         ClearBackground((Color){0, 0, 0, 255});
@@ -146,8 +150,34 @@ int main(void)
             if (IsKeyPressed(KEY_LEFT_BRACKET))  boloGunsightRange(0);
             if (IsKeyPressed(KEY_RIGHT_BRACKET)) boloGunsightRange(1);
 
-            /* B = send LGM to gunsight tile (captures bases, builds terrain). */
-            if (IsKeyPressed(KEY_B)) boloManMove(0); /* BsTrees = generic */
+            /* Tab = quick-drop mine under tank (visible to nearby enemies). */
+            if (IsKeyPressed(KEY_TAB)) boloLayMine();
+
+            /* ; = cycle to next owned pillbox view. */
+            if (IsKeyPressed(KEY_SEMICOLON)) boloPillView();
+
+            /* Return = return viewport to own tank. */
+            if (IsKeyPressed(KEY_ENTER)) boloTankView();
+
+            /* While in pillbox view, arrow keys navigate adjacent pillboxes
+             * instead of (only) moving the tank. */
+            if (boloInPillView()) {
+                if (IsKeyPressed(KEY_LEFT)  || IsKeyPressed(KEY_A)) boloPillViewNav(-1,  0);
+                if (IsKeyPressed(KEY_RIGHT) || IsKeyPressed(KEY_D)) boloPillViewNav( 1,  0);
+                if (IsKeyPressed(KEY_UP)    || IsKeyPressed(KEY_W)) boloPillViewNav( 0, -1);
+                if (IsKeyPressed(KEY_DOWN)  || IsKeyPressed(KEY_S)) boloPillViewNav( 0,  1);
+            }
+
+            /* 1-5 = select LGM build mode (persists until changed):
+             *   1 Farm/capture  2 Road  3 Building  4 Pillbox  5 Invisible mine */
+            if (IsKeyPressed(KEY_ONE))   buildMode = 0;
+            if (IsKeyPressed(KEY_TWO))   buildMode = 1;
+            if (IsKeyPressed(KEY_THREE)) buildMode = 2;
+            if (IsKeyPressed(KEY_FOUR))  buildMode = 3;
+            if (IsKeyPressed(KEY_FIVE))  buildMode = 4;
+
+            /* B = send LGM to gunsight tile with current build mode. */
+            if (IsKeyPressed(KEY_B)) boloManMove(buildMode);
         }
     }
 

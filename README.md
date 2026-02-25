@@ -61,7 +61,8 @@ socket and SDL mutex stubs; the client Raylib layer needs a Linux CMake pass.
 | Right / D | Turn clockwise |
 | Space | Fire shell |
 | Tab | Quick-drop mine (visible to nearby tanks) |
-| B | Deploy LGM (engineer / builder) |
+| 1 – 5 | Select LGM build mode (Farm · Road · Building · Pillbox · Mine) |
+| B | Send LGM to gunsight tile with selected mode |
 | [ / ] | Increase / decrease gunsight range |
 | ; | Cycle pillbox view (owned pillboxes) |
 | Return | Return to tank view |

@@ -7,5 +7,5 @@
  *
  * This wrapper includes the original, then resets packing to default.
  */
-#include "../../winbolo/src/server/servernet.h"
+#include "../src/server/servernet.h"
 #pragma pack()   /* reset to compiler default (/Zp or none) */
