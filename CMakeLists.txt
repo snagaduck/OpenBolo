@@ -1,6 +1,25 @@
 cmake_minimum_required(VERSION 3.20)
 project(OpenBolo C)
 
+# ENet ships cmake_minimum_required(VERSION 3.1) which CMake 3.27+ rejects.
+# Setting this cache var lets CMake handle ENet's old policy floor gracefully.
+set(CMAKE_POLICY_VERSION_MINIMUM "3.5" CACHE STRING "" FORCE)
+
+include(FetchContent)
+
+# ---- ENet — cross-platform UDP networking (pure C, no extra deps) ---
+FetchContent_Declare(enet
+    GIT_REPOSITORY https://github.com/lsalzman/enet.git
+    GIT_TAG        v1.3.17
+    GIT_SHALLOW    TRUE
+)
+FetchContent_MakeAvailable(enet)
+# Match ENet's CRT to our /MT /MTd so the linker doesn't warn about MSVCRTD
+if(MSVC)
+    set_property(TARGET enet PROPERTY
+        MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+endif()
+
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 

@@ -68,4 +68,28 @@ void boloPillViewNav(int horz, int vert);
 /* Returns 1 if currently in pillbox view, 0 if in tank view. */
 int boloInPillView(void);
 
+/* ── Phase C: ENet multiplayer ──────────────────────────────────────────── */
+
+/* Host a new game on the given UDP port.  Call before the game loop.
+ * Returns 1 on success, 0 on failure. */
+int  boloHost(unsigned short port, const char *playerName);
+
+/* Join an existing game at ip:port.  Call before the game loop; then poll
+ * boloNetStatus() each frame until it returns BOLO_NET_RUNNING or
+ * BOLO_NET_FAILED. */
+int  boloJoin(const char *ip, unsigned short port, const char *playerName);
+
+/* Returns the current network status as one of the BOLO_NET_* constants. */
+int  boloNetStatus(void);
+
+/* Values returned by boloNetStatus() — mirrors the engine's netStatus enum. */
+#define BOLO_NET_JOINING         0
+#define BOLO_NET_RUNNING         1
+#define BOLO_NET_START_DOWNLOAD  2
+#define BOLO_NET_BASE_DOWNLOAD   3
+#define BOLO_NET_PILL_DOWNLOAD   4
+#define BOLO_NET_MAP_DOWNLOAD    5
+#define BOLO_NET_TIME_DOWNLOAD   6
+#define BOLO_NET_FAILED          7
+
 #endif /* GAME_LOOP_H */

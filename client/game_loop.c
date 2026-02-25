@@ -28,10 +28,13 @@
  *   boloUpdate() — render callback (screenUpdate → frontEndDrawMainScreen)
  */
 
-#include "global.h"   /* bool, BYTE, UNLIMITED_GAME_TIME, etc. */
-#include "backend.h"  /* screenLoadMap, screenGameTick, screenUpdate,
-                         gameOpen, TNONE, redraw */
-#include "network.h"  /* netSetType, netSingle */
+#include "global.h"        /* bool, BYTE, UNLIMITED_GAME_TIME, etc. */
+#include "backend.h"       /* screenLoadMap, screenGameTick, screenUpdate,
+                              gameOpen, TNONE, redraw */
+#include "network.h"       /* netSetType, netSingle, netSetup, netGetStatus */
+#include "servernet.h"     /* serverNetCreate */
+#include "servertransport.h" /* serverTransportListenUDP */
+#include "netclient.h"     /* netClientUdpCheck */
 
 /* Defined in win32stubs.c — keeps gameFrontGetPlayerName() in sync. */
 extern void gameFrontSetPlayerName(const char *name);
@@ -75,6 +78,8 @@ void boloTick(int tbOrdinal, int shoot)
 
 void boloUpdate(void)
 {
+    serverTransportListenUDP(); /* poll ENet server events (non-blocking) */
+    netClientUdpCheck();        /* poll ENet client receive (non-blocking) */
     screenUpdate(redraw);
 }
 
@@ -118,4 +123,42 @@ void boloPillViewNav(int horz, int vert)
 int boloInPillView(void)
 {
     return g_inPillView;
+}
+
+/* ── Phase C: ENet multiplayer ──────────────────────────────────────────── */
+
+int boloHost(unsigned short port, const char *playerName)
+{
+    const char *name = (playerName && playerName[0]) ? playerName : "Player";
+    gameFrontSetPlayerName(name);
+
+    /* Start the embedded server on the requested port. */
+    if (!serverNetCreate(port, "", aiNone, "", 0, FALSE, "", 0)) {
+        return 0;
+    }
+
+    /* Connect the local client to the local server (usCreate=TRUE). */
+    if (!netSetup(netUdp, port, "127.0.0.1", port, "",
+                  TRUE, "", 0, FALSE, FALSE, FALSE, "")) {
+        return 0;
+    }
+    return 1;
+}
+
+int boloJoin(const char *ip, unsigned short port, const char *playerName)
+{
+    const char *name = (playerName && playerName[0]) ? playerName : "Player";
+    gameFrontSetPlayerName(name);
+
+    /* Connect to an existing remote server (usCreate=FALSE). */
+    if (!netSetup(netUdp, 0, (char *)ip, port, "",
+                  FALSE, "", 0, FALSE, FALSE, FALSE, "")) {
+        return 0;
+    }
+    return 1;
+}
+
+int boloNetStatus(void)
+{
+    return (int)netGetStatus();
 }

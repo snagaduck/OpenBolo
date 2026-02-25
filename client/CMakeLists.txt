@@ -139,6 +139,7 @@ target_link_libraries(winbolo-render-bridge PRIVATE raylib)
 set(CLIENT_SOURCES
     ${CMAKE_CURRENT_SOURCE_DIR}/frontend_raylib.c
     ${CMAKE_CURRENT_SOURCE_DIR}/game_loop.c      # Phase B1: engine bridge
+    ${CMAKE_CURRENT_SOURCE_DIR}/enet_transport.c # Phase C1: ENet transport (replaces netclient.c + servertransport.c)
 )
 
 # ---- Embedded server (WinBolo client always hosts its own server) -
@@ -153,7 +154,7 @@ set(SERVER_SOURCES
     ${SRV}/servermessages.c
     ${SRV}/servernet.c
     ${SRV}/threads.c
-    ${SRV}/win32/servertransport.c   # Winsock2 transport layer
+    # servertransport.c replaced by enet_transport.c below
 )
 
 # ---- Non-DirectX gui/win32 files ----------------------------
@@ -165,7 +166,7 @@ set(GUI_WIN32_SOURCES
     ${GUI_WIN}/lang.c             # string resources (called by backend)
     ${GUI_WIN}/brainsHandler.c    # brain DLL loader
     ${GUI_WIN}/clientmutex.c      # screen mutex
-    ${GUI_WIN}/netclient.c        # UDP client network layer
+    # netclient.c replaced by enet_transport.c below
     ${GUI_WIN}/dnslookups.c       # async DNS
     ${GUI_WIN}/currentgames.c     # tracker game list
     ${GUI_WIN}/mappreview.c       # map preview (needed by netclient)
@@ -209,9 +210,10 @@ target_include_directories(winbolo-client PRIVATE
     ${BSD}
     ${GUI_WIN}                    # gui/win32/ headers (dialogs, draw.h, etc.)
     ${GUI_SRC}                    # gui/ headers (resource.h, lang.h)
+    ${enet_SOURCE_DIR}/include    # ENet headers
 )
 
-target_link_libraries(winbolo-client PRIVATE raylib ws2_32 winmm)
+target_link_libraries(winbolo-client PRIVATE raylib enet ws2_32 winmm)
 
 # Force-include platform header (same pattern as server)
 target_compile_options(winbolo-client PRIVATE
