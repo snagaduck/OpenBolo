@@ -1,0 +1,17 @@
+# Store all text files with LF in the repository.
+# Git will handle checkout line endings per platform.
+* text=auto eol=lf
+
+# Explicitly binary — never touch line endings
+*.bmp  binary
+*.wav  binary
+*.png  binary
+*.ico  binary
+*.lib  binary
+*.dll  binary
+*.exe  binary
+
+# Windows-specific files that genuinely need CRLF
+*.bat  text eol=crlf
+*.cmd  text eol=crlf
+*.rc   text eol=crlf
